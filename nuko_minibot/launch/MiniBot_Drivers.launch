@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+
+<launch>
+    <!-- Launch file parameters -->
+    <arg name="wheel_separation" default="0.154" /> <!-- unit: meter -->
+    <arg name="wheel_radius"     default="0.0335" /> <!-- unit: meter -->   
+
+    <!-- YDLidar -->
+    <include file="$(find nuko_minibot)/launch/minibot_ydlidar.launch" />
+
+    <!-- ODOMETRY -->
+    <include file="$(find nuko_minibot)/launch/minibot_base.launch">
+        <arg name="wheel_separation" value="$(arg wheel_separation)"/>
+        <arg name="wheel_radius"     value="$(arg wheel_radius)"/>
+    </include>
+</launch>
