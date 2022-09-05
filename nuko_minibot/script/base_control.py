@@ -15,7 +15,7 @@
 # limitations under the License.
 
 import rospy
-import tf
+import numpy
 import time
 import sys
 import math
@@ -24,6 +24,24 @@ import string
 import codecs
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
+
+def quaternion_from_euler(ai, aj, ak):
+    ai /= 2.0
+    aj /= 2.0
+    ak /= 2.0
+    ci = math.cos(ai)
+    si = math.sin(ai)
+    cj = math.cos(aj)
+    sj = math.sin(aj)
+    ck = math.cos(ak)
+    sk = math.sin(ak)
+    cc = ci*ck
+    cs = ci*sk
+    sc = si*ck
+    ss = si*sk
+    quaternion = numpy.empty((4, ), dtype=numpy.float64)
+    quaternion = numpy.array([cj*sc - sj*cs, cj*ss + sj*cc, cj*cs - sj*sc, cj*cc + sj*ss], dtype=numpy.float64)
+    return quaternion
 
 class BaseControl:
     def __init__(self):
@@ -38,7 +56,6 @@ class BaseControl:
         self.VxCov = float( rospy.get_param('~vx_cov', '1.0') ) # covariance for Vx measurement
         self.VyawCov = float( rospy.get_param('~vyaw_cov', '1.0') ) # covariance for Vyaw measurement
         self.odom_topic = rospy.get_param('~odom_topic', '/odom') # topic name
-        self.pub_tf = bool(rospy.get_param('~pub_tf', True)) # whether publishes TF or not
         self.debug_mode = bool(rospy.get_param('~debug_mode', False)) # true for detail info        
 
         # Serial Communication
@@ -61,7 +78,6 @@ class BaseControl:
         self.pub = rospy.Publisher(self.odom_topic, Odometry, queue_size=10)   
         self.timer_odom = rospy.Timer(rospy.Duration(1.0/self.odom_freq), self.timerOdomCB) 
         self.timer_cmd = rospy.Timer(rospy.Duration(0.1), self.timerCmdCB) # 10Hz
-        #self.tf_broadcaster = tf.TransformBroadcaster() # TF
 
         # variable        
         self.trans_x = 0.0 # cmd
@@ -110,7 +126,7 @@ class BaseControl:
             self.pose_x   = self.pose_x   + Vx * math.cos(self.pose_yaw) * dt
             self.pose_y   = self.pose_y   + Vx * math.sin(self.pose_yaw) * dt
             self.pose_yaw = self.pose_yaw + Vyaw * dt
-            pose_quat = tf.transformations.quaternion_from_euler(0,0,self.pose_yaw)
+            pose_quat = quaternion_from_euler(0,0,self.pose_yaw)
             
             # Publish Odometry
             msg = Odometry()
@@ -132,11 +148,7 @@ class BaseControl:
             msg.twist.covariance[35] = self.VyawCov
             msg.pose.covariance = msg.twist.covariance
             self.pub.publish(msg)
-
-            # TF Broadcaster
-            #if self.pub_tf:
-            #    self.tf_broadcaster.sendTransform( (self.pose_x, self.pose_y, 0.0), pose_quat, self.current_time, self.baseId, self.odomId)          
-
+         
             # Debug mode                      
             if self.debug_mode: 
                 if len(data) == 6:
